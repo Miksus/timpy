@@ -17,17 +17,13 @@ class _CalendarFrame:
 
     def to_calendar_dataframe(self, dates, values):
         # Core
-        df_cal = pd.DataFrame(values, index=dates, columns=["Values"]) #data.copy().to_frame()
+        df_cal = pd.DataFrame(values, index=dates, columns=["Values"])
         
         df_cal["day of week"] = dates.dayofweek
-        df_cal["week of year"] = dates.strftime('%Y-%W') # BUG: new year week causes multiple rows: 2019-12-30 --> 2019-55 and 2020-01-01 --> 2020-01
+        df_cal["week"] = dates - pd.to_timedelta(dates.dayofweek, unit="d")
         
-        # unstack does not keep the order, preserved manually
-        weekofyear_order = dates.weekofyear.unique()
-        
-        df_cal = df_cal.set_index(["week of year", "day of week"])
+        df_cal = df_cal.set_index(["week", "day of week"])
         df_cal = df_cal.unstack("day of week")["Values"]
-        #df_cal = df_cal.reindex(weekofyear_order)
         
         df_cal = self._format_columns(df_cal)
         df_cal = self._format_indexes(df_cal, dates)
@@ -46,7 +42,7 @@ class _CalendarFrame:
                 # Mon, Tue, Wed etc.
                 df_calendar.columns = [calendar_.day_abbr[num] for num in df_calendar.columns]
             else:
-                raise KeyError(f"Unknown label type: {dayofweek_labels}")
+                raise KeyError(f"Unknown label type: {dow_labels}")
         else:
             df_calendar.columns = dow_labels
         return df_calendar
@@ -62,9 +58,6 @@ class _CalendarFrame:
 
         if self.show_year:
             years = bow.year
-            print(df_calendar.index.min(), df_calendar.index.max())
-            print(df_calendar)
-            print(years.min(), years.max(), years)
             df_calendar = df_calendar.set_index(years, append=True)
             index_labels += ["Year"]
 
@@ -109,8 +102,44 @@ def _annotate_dates(ax, dates, n_weeks):
         text_kwargs = dict(color="k", ha="center", va="center")
         ax.text(x, y, val, **text_kwargs)
 
-def calendar(data=None, cal_kws=None, start_date=None, end_date=None, **kwargs):
+def calendar(data, start_date=None, end_date=None, show_dates=True,
+            show_year=True, show_month=True, show_week=True, dayofweek_labels="name", **kwargs):
+    """Plot numerical timeseries to calendar-like heatmap
+    
+    Arguments:
+        data {pd.Series}
+            Time series to plot. Must contain numerical data.
+    
+    Keyword Arguments:
+        start_date {str, datetime like}
+            Start date of the calendar. 
+            Default: start date of the data
+        end_date {str, datetime like} -- 
+            End date of the calendar. 
+            Default: end date of the data
+        show_dates : {bool}
+            Whether to annotate dates on the calendar. Default: True
+        show_year : {bool}
+            Whether to show year or not (default: {True})
+        show_month : {bool or "name", "abbr"}
+            Definition how to show the months.
+            "name": full name of the month (January, February, ...)
+            "abbr": abbreviation of the month (Jan, Feb, ...) 
+            Default: "name"
+        show_week : {bool}
+            Whether to show week number or not (default: {True})
+        dayofweek_labels : {"name", "abbr" or List[str]}
+            Labels for the week days
+            "name" : full name of the week day (Monday, Tuesday, ...)
+            "abbr" : abbretiation of the week day (Mon, Tue, ...) 
+            Defautl : "name" (default: {"name"})
+        kwargs -- other keyword arguments
+            All other arguments are passed to ``seaborn.heatmap``
 
+    Returns:
+        ax -- Matplotlib Axes
+            Axes object with the calendar
+    """
 
     kwds_plot = dict(
         square=True, 
@@ -120,22 +149,20 @@ def calendar(data=None, cal_kws=None, start_date=None, end_date=None, **kwargs):
     )
     kwds_plot.update(kwargs)
 
-    cal_kws_ = dict(
-        show_year=True,
-        show_month=True,
-        show_week=True,
-        dayofweek_labels="name"
+    cal_kws = dict(
+        show_year=show_year,
+        show_month=show_month,
+        show_week=show_week,
+        dayofweek_labels=dayofweek_labels
     )
-    cal_kws_.update(cal_kws if cal_kws is not None else {})
 
     data = _format_index(data, start_date, end_date)
     
     dates = data.index
     values = data.values
 
-    formatter = _CalendarFrame(**cal_kws_)
+    formatter = _CalendarFrame(**cal_kws)
     df_calendar = formatter.to_calendar_dataframe(dates, values)
-    print(df_calendar)
     ax = sns.heatmap(
         df_calendar,
         **kwds_plot
@@ -144,6 +171,6 @@ def calendar(data=None, cal_kws=None, start_date=None, end_date=None, **kwargs):
     ax.tick_params(axis="y", labelrotation=0)
     ax.set_facecolor('white')
 
-    if cal_kws_.get("show_dates", True):
+    if show_dates:
         _annotate_dates(ax, dates, n_weeks=df_calendar.shape[0])
     return ax
