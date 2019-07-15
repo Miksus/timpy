@@ -2,8 +2,6 @@
 
 > Time series plotting for Python
 
-> Simulator, Virtual investing, Educational
-
 
 ---
 
