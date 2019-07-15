@@ -85,6 +85,8 @@ class _CalendarFrame:
         return df_calendar
 
 def _format_index(data:pd.Series, start_date=None, end_date=None):
+    if data.index.dtype == "O":
+        data.index = pd.to_datetime(data.index)
     start_date = data.index.min() if start_date is None else pd.to_datetime(start_date)
     start = pd.tseries.offsets.Week(weekday=0).rollback(start_date)
     
@@ -145,7 +147,9 @@ def calendar(data, start_date=None, end_date=None, show_dates=True,
         square=True, 
         linewidths=1,
         annot=False,
-        linecolor="black"
+        linecolor="black",
+        cmap="Blues", 
+        vmax=values.max()*1.10
     )
     kwds_plot.update(kwargs)
 
