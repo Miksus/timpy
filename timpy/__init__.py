@@ -1,1 +1,1 @@
-from .calendar_map import calendar
+from timpy.calendar_map import calendar
