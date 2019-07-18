@@ -1,6 +1,9 @@
 import calendar as calendar_
 
 import seaborn as sns
+import matplotlib.colors as colors
+import matplotlib.pyplot as plt
+
 import numpy as np
 import pandas as pd
 
@@ -143,14 +146,21 @@ def calendar(data, start_date=None, end_date=None, show_dates=True,
             Axes object with the calendar
     """
 
+    data = _format_index(data, start_date, end_date)
+    
+    dates = data.index
+    values = data.values
+
     kwds_plot = dict(
         square=True, 
         linewidths=1,
         annot=False,
         linecolor="black",
-        cmap="Blues", 
-        vmax=values.max()*1.10
-    )
+        cmap=colors.LinearSegmentedColormap.from_list(
+            'CalendarCmap',
+            plt.get_cmap("Blues")(np.linspace(0.1, 0.80, 100))
+        ),
+        )
     kwds_plot.update(kwargs)
 
     cal_kws = dict(
@@ -159,11 +169,6 @@ def calendar(data, start_date=None, end_date=None, show_dates=True,
         show_week=show_week,
         dayofweek_labels=dayofweek_labels
     )
-
-    data = _format_index(data, start_date, end_date)
-    
-    dates = data.index
-    values = data.values
 
     formatter = _CalendarFrame(**cal_kws)
     df_calendar = formatter.to_calendar_dataframe(dates, values)
